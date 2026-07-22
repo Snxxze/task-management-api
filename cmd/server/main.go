@@ -34,7 +34,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	app := bootstrap.New(db)
+	app := bootstrap.New(db, cfg.JWTSecret)
 
 	router := gin.Default()
 
@@ -46,7 +46,7 @@ func main() {
 		})
 	})
 
-	routes.Register(router, app)
+	routes.Register(router, app, cfg.JWTSecret)
 
 	router.Run(":" + cfg.ServerPort)
 }
