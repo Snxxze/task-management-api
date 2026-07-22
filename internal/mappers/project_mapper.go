@@ -7,9 +7,12 @@ import (
 
 func ToProjectResponse(project models.Project) projectdto.ProjectResponse {
 	return projectdto.ProjectResponse{
-		ID:          project.ID,
-		Name:        project.Name,
-		Description: project.Description,
-		Color:       project.Color,
+		ID:          	project.ID,
+		Name:        	project.Name,
+		Description: 	project.Description,
+		Color:       	project.Color,
+		IsArchived:  	project.IsArchived,
+		CreatedAt:   	project.CreatedAt,
+		UpdatedAt:   	project.UpdatedAt,
 	}
 }

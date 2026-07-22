@@ -8,7 +8,7 @@ type ProjectResponse struct {
 	Description string			`json:"description"`
 	Color       string			`json:"color"`
 
-	IsArchived string				`json:"is_archived"`
+	IsArchived  bool				`json:"is_archived"`
 
 	CreatedAt time.Time			`json:"created_at"`
 	UpdatedAt	time.Time			`json:"updated_at"`

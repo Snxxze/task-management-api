@@ -11,6 +11,7 @@ type Config struct {
 	DBName     string
 	DBSSLMode  string
 	DBTimezone string
+	JWTSecret  string
 }
 
 func Load() Config {
@@ -23,6 +24,7 @@ func Load() Config {
 		DBName:     getEnv("DB_NAME", "task_management"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
 		DBTimezone: getEnv("DB_TIMEZONE", "Asia/Bangkok"),
+		JWTSecret:  getEnv("JWT_SECRET", "super-secret-jwt-key"),
 	}
 }
 

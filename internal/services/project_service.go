@@ -13,8 +13,9 @@ import (
 type ProjectService interface {
 	Create(ctx context.Context, userID uint, req projectdto.CreateProjectRequest) (*projectdto.ProjectResponse, error)
 	FindAll(ctx context.Context, userID uint) ([]projectdto.ProjectResponse, error)
-	Update(ctx context.Context, id uint, req projectdto.UpdateProjectRequest) (*projectdto.ProjectResponse, error)
-	Delete(ctx context.Context, id uint) error
+	FindByID(ctx context.Context, id uint, userID uint) (*projectdto.ProjectResponse, error)
+	Update(ctx context.Context, id uint, userID uint, req projectdto.UpdateProjectRequest) (*projectdto.ProjectResponse, error)
+	Delete(ctx context.Context, id uint, userID uint) error
 }
 
 type projectService struct {
@@ -39,10 +40,10 @@ func (s *projectService) Create(
 	}
 
 	project := models.Project{
-		Name: strings.TrimSpace(req.Name),
+		Name:        strings.TrimSpace(req.Name),
 		Description: strings.TrimSpace(req.Description),
-		Color: req.Color,
-		UserID: userID,
+		Color:       req.Color,
+		UserID:      userID,
 	}
 
 	err := s.projectRepo.Create(ctx, &project)
@@ -76,12 +77,27 @@ func (s *projectService) FindAll(
 	return res, nil
 }
 
+func (s *projectService) FindByID(
+	ctx context.Context,
+	id uint,
+	userID uint,
+) (*projectdto.ProjectResponse, error) {
+	project, err := s.projectRepo.FindByID(ctx, id, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	res := mappers.ToProjectResponse(*project)
+	return &res, nil
+}
+
 func (s *projectService) Update(
 	ctx context.Context, 
 	id uint, 
+	userID uint,
 	req projectdto.UpdateProjectRequest,
 ) (*projectdto.ProjectResponse, error) {
-	project, err := s.projectRepo.FindByID(ctx, id)
+	project, err := s.projectRepo.FindByID(ctx, id, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +135,9 @@ func (s *projectService) Update(
 func (s *projectService) Delete(
 	ctx context.Context, 
 	id uint,
+	userID uint,
 ) error {
-	err := s.projectRepo.Delete(ctx, id)
+	err := s.projectRepo.Delete(ctx, id, userID)
 	if err != nil {
 		return err
 	}
