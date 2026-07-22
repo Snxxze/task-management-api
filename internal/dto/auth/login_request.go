@@ -1,8 +1,6 @@
 package auth
 
-import "task-management-api/internal/dto/user"
-
 type LoginRequest struct {
-	AccessToken 		string	`json:"access_token"`
-	User		user.UserResponse		`json:"user"`
+	Email    	string 		`json:"email" binding:"required,email"`
+	Password 	string 		`json:"password" binding:"required"`
 }
