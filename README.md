@@ -8,6 +8,8 @@ REST API สำหรับจัดการงานและโปรเจ�
 - Gin
 - GORM
 - PostgreSQL
+- JWT (`golang-jwt/jwt/v5`)
+- Bcrypt Password Hashing (`golang.org/x/crypto/bcrypt`)
 - Docker Compose
 - Swagger / Swaggo
 
@@ -16,7 +18,7 @@ REST API สำหรับจัดการงานและโปรเจ�
 ```text
 task-management-api/
 ├── cmd/server          # จุดเริ่มต้นของ application
-├── docs                # เอกสารออกแบบ API, database, tech debt และ Swagger spec
+├── docs                # เอกสารออกแบบ API, database และ Swagger spec
 ├── internal/apperrors  # error กลางของระบบ
 ├── internal/bootstrap  # dependency injection
 ├── internal/config     # โหลด environment config
@@ -25,10 +27,12 @@ task-management-api/
 ├── internal/dto        # request/response DTO
 ├── internal/handlers   # HTTP handler layer
 ├── internal/mappers    # แปลง model เป็น response DTO
+├── internal/middleware # Gin middlewares
 ├── internal/models     # GORM models
 ├── internal/repositories # database access layer
 ├── internal/routes     # register routes
-└── internal/services   # business logic layer
+├── internal/services   # business logic layer
+└── internal/util       # JWT token utilities
 ```
 
 ## ความสามารถปัจจุบัน
@@ -98,6 +102,7 @@ DB_PASSWORD=task_password
 DB_NAME=task_management
 DB_SSLMODE=disable
 DB_TIMEZONE=Asia/Bangkok
+JWT_SECRET=super-secret-jwt-key
 ```
 
 ## Swagger
@@ -123,26 +128,53 @@ Base URL:
 http://localhost:8080/api/v1
 ```
 
-### Projects
+### 1. Auth (Public)
+
+```text
+POST /auth/register
+POST /auth/login
+```
+
+ตัวอย่าง request สำหรับสมัครสมาชิก:
+
+```json
+{
+  "name": "Developer Test",
+  "email": "dev@example.com",
+  "password": "password123"
+}
+```
+
+ตัวอย่าง request สำหรับเข้าสู่ระบบ:
+
+```json
+{
+  "email": "dev@example.com",
+  "password": "password123"
+}
+```
+
+### 2. Projects (Protected - Require `Authorization: Bearer <token>`)
 
 ```text
 GET    /projects
 POST   /projects
+GET    /projects/:id
 PATCH  /projects/:id
 DELETE /projects/:id
 ```
 
-ตัวอย่าง request สำหรับสร้าง project:
+### 3. Tasks (Protected - Require `Authorization: Bearer <token>`)
 
-```json
-{
-  "name": "Learning Go API",
-  "description": "Practice layered architecture",
-  "color": "#3B82F6"
-}
+```text
+POST   /tasks
+GET    /tasks?project_id=1&status=todo&priority=high
+GET    /tasks/:id
+PATCH  /tasks/:id
+DELETE /tasks/:id
 ```
 
-### Users
+### 4. Users (Protected - Require `Authorization: Bearer <token>`)
 
 ```text
 GET    /users/:id
@@ -150,34 +182,10 @@ PATCH  /users/:id
 DELETE /users/:id
 ```
 
-ตัวอย่าง request สำหรับแก้ไข user:
-
-```json
-{
-  "name": "Updated User",
-  "email": "updated@example.com"
-}
-```
-
-## Seed Data
-
-ตอนเริ่ม server ระบบจะ seed user สำหรับทดสอบให้อัตโนมัติ:
-
-```text
-name: Test User
-email: test@example.com
-password_hash: hashed-password
-```
-
-หมายเหตุ: ตอนนี้ Project API ยังใช้ `userID := uint(1)` ชั่วคราว จนกว่าจะเพิ่มระบบ Authentication/JWT
-
 ## Roadmap ถัดไป
 
-- Authentication ด้วย JWT
-- Task CRUD API
 - Response wrapper
 - Validation error response
-- Pagination, search และ sorting
-- Logging และ request ID
-- Unit test และ handler test
-- Dockerfile
+- Pagination และ sorting
+- Logging และ request ID middleware
+- Unit test และ Integration test
