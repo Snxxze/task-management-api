@@ -9,6 +9,7 @@ import (
 	userdto "task-management-api/internal/dto/user"
 	"task-management-api/internal/middleware"
 	"task-management-api/internal/services"
+	"task-management-api/internal/util"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,12 +32,12 @@ func NewUserHandler(
 // @Tags Users
 // @Produce json
 // @Param id path int true "User ID"
-// @Success 200 {object} user.UserResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} util.Response
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 403 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 500 {object} util.Response
 // @Security BearerAuth
 // @Router /users/{id} [get]
 func (h *UserHandler) GetProfile(
@@ -50,24 +51,18 @@ func (h *UserHandler) GetProfile(
 		32,
 	)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid user id",
-		})
+		util.Error(c, http.StatusBadRequest, "invalid user id")
 		return
 	}
 
 	authUserID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	if uint(id) != authUserID {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "forbidden",
-		})
+		util.Error(c, http.StatusForbidden, "forbidden")
 		return
 	}
 
@@ -78,20 +73,16 @@ func (h *UserHandler) GetProfile(
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return
 	}
 
-	c.JSON(http.StatusOK, res)
+	util.Success(c, http.StatusOK, res)
 }
 
 // UpdateProfile godoc
@@ -102,13 +93,13 @@ func (h *UserHandler) GetProfile(
 // @Produce json
 // @Param id path int true "User ID"
 // @Param request body user.UpdateUserRequest true "Update user request"
-// @Success 200 {object} user.UserResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} util.Response
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 403 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 409 {object} util.Response
+// @Failure 500 {object} util.Response
 // @Security BearerAuth
 // @Router /users/{id} [patch]
 func (h *UserHandler) UpdateProfile(
@@ -122,33 +113,25 @@ func (h *UserHandler) UpdateProfile(
 		32,
 	)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid user id",
-		})
+		util.Error(c, http.StatusBadRequest, "invalid user id")
 		return
 	}
 
 	authUserID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	if uint(id) != authUserID {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "forbidden",
-		})
+		util.Error(c, http.StatusForbidden, "forbidden")
 		return
 	}
 
 	var req userdto.UpdateUserRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		util.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -160,30 +143,22 @@ func (h *UserHandler) UpdateProfile(
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		case errors.Is(err, apperrors.ErrConflict):
-			c.JSON(http.StatusConflict, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusConflict, err.Error())
 
 		case errors.Is(err, apperrors.ErrBadRequest):
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusBadRequest, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
-		
+
 		return
 	}
 
-	c.JSON(http.StatusOK, res)
+	util.Success(c, http.StatusOK, res)
 }
 
 // DeleteUser godoc
@@ -192,11 +167,11 @@ func (h *UserHandler) UpdateProfile(
 // @Tags Users
 // @Param id path int true "User ID"
 // @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 403 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 500 {object} util.Response
 // @Security BearerAuth
 // @Router /users/{id} [delete]
 func (h *UserHandler) DeleteUser(
@@ -210,24 +185,18 @@ func (h *UserHandler) DeleteUser(
 		32,
 	)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid user id",
-		})
+		util.Error(c, http.StatusBadRequest, "invalid user id")
 		return
 	}
 
 	authUserID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	if uint(id) != authUserID {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "forbidden",
-		})
+		util.Error(c, http.StatusForbidden, "forbidden")
 		return
 	}
 
@@ -238,14 +207,10 @@ func (h *UserHandler) DeleteUser(
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return

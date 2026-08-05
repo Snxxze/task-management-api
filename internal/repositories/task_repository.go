@@ -13,10 +13,10 @@ import (
 
 type TaskRepository interface {
 	Create(ctx context.Context, task *models.Task) error
-	FindByID(ctx context.Context, id uint) (*models.Task, error)
-	Find(ctx context.Context, filter filters.TaskFilter) ([]models.Task, error)
+	FindByID(ctx context.Context, id uint, userID uint) (*models.Task, error)
+	Find(ctx context.Context, userID uint, filter filters.TaskFilter) ([]models.Task, error)
 	Update(ctx context.Context, task *models.Task) error
-	Delete(ctx context.Context, id uint) error
+	Delete(ctx context.Context, id uint, userID uint) error
 }
 
 type taskRepository struct {
@@ -47,9 +47,13 @@ func (r *taskRepository) Create(
 func (r *taskRepository) FindByID(
 	ctx context.Context,
 	id uint,
+	userID uint,
 ) (*models.Task, error) {
 	var task models.Task
-	err := r.db.WithContext(ctx).Take(&task, "id = ?", id).Error
+	err := r.db.WithContext(ctx).
+		Joins("JOIN projects ON projects.id = tasks.project_id AND projects.deleted_at IS NULL").
+		Where("tasks.id = ? AND projects.user_id = ?", id, userID).
+		Take(&task).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -64,26 +68,29 @@ func (r *taskRepository) FindByID(
 
 func (r *taskRepository) Find(
 	ctx context.Context,
+	userID uint,
 	filter filters.TaskFilter,
 ) ([]models.Task, error) {
-	db := r.db.WithContext(ctx)
+	query := r.db.WithContext(ctx).
+		Joins("JOIN projects ON projects.id = tasks.project_id AND projects.deleted_at IS NULL").
+		Where("projects.user_id = ?", userID)
 
 	if filter.ProjectID != nil {
-		db = db.Where("project_id = ?", *filter.ProjectID)
+		query = query.Where("tasks.project_id = ?", *filter.ProjectID)
 	}
 
 	if filter.Status != nil {
-		db = db.Where("status = ?", *filter.Status)
+		query = query.Where("tasks.status = ?", *filter.Status)
 	}
 
 	if filter.Priority != nil {
-		db = db.Where("priority = ?", *filter.Priority)
+		query = query.Where("tasks.priority = ?", *filter.Priority)
 	}
 
-	db = db.Order("created_at DESC")
+	query = query.Order("tasks.created_at DESC")
 
 	var tasks []models.Task
-	err := db.Find(&tasks).Error
+	err := query.Find(&tasks).Error
 
 	if err != nil {
 		return nil, fmt.Errorf("find tasks: %w", err)
@@ -112,8 +119,13 @@ func (r *taskRepository) Update(
 func (r *taskRepository) Delete(
 	ctx context.Context,
 	id uint,
+	userID uint,
 ) error {
-	result := r.db.WithContext(ctx).Delete(&models.Task{}, id)
+	subQuery := r.db.Model(&models.Project{}).Select("id").Where("user_id = ?", userID)
+
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND project_id IN (?)", id, subQuery).
+		Delete(&models.Task{})
 
 	if result.Error != nil {
 		return fmt.Errorf("delete task: %w", result.Error)

@@ -9,6 +9,7 @@ import (
 	projectdto "task-management-api/internal/dto/project"
 	"task-management-api/internal/middleware"
 	"task-management-api/internal/services"
+	"task-management-api/internal/util"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,12 +33,12 @@ func NewProjectHandler(
 // @Accept json
 // @Produce json
 // @Param request body project.CreateProjectRequest true "Create project request"
-// @Success 201 {object} project.ProjectResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 201 {object} util.Response
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 409 {object} util.Response
+// @Failure 500 {object} util.Response
 // @Security BearerAuth
 // @Router /projects [post]
 func (h *ProjectHandler) Create(
@@ -46,17 +47,13 @@ func (h *ProjectHandler) Create(
 	var req projectdto.CreateProjectRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		util.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -69,30 +66,22 @@ func (h *ProjectHandler) Create(
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		case errors.Is(err, apperrors.ErrConflict):
-			c.JSON(http.StatusConflict, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusConflict, err.Error())
 
 		case errors.Is(err, apperrors.ErrBadRequest):
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusBadRequest, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return
 	}
 
-	c.JSON(http.StatusCreated, res)
+	util.Success(c, http.StatusCreated, res)
 }
 
 // FindAll godoc
@@ -100,10 +89,10 @@ func (h *ProjectHandler) Create(
 // @Description Get all projects for the current authenticated user.
 // @Tags Projects
 // @Produce json
-// @Success 200 {array} project.ProjectResponse
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 500 {object} util.Response
 // @Security BearerAuth
 // @Router /projects [get]
 func (h *ProjectHandler) FindAll(
@@ -111,9 +100,7 @@ func (h *ProjectHandler) FindAll(
 ) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -125,20 +112,16 @@ func (h *ProjectHandler) FindAll(
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return
 	}
 
-	c.JSON(http.StatusOK, projects)
+	util.Success(c, http.StatusOK, projects)
 }
 
 // FindByID godoc
@@ -147,11 +130,11 @@ func (h *ProjectHandler) FindAll(
 // @Tags Projects
 // @Produce json
 // @Param id path int true "Project ID"
-// @Success 200 {object} project.ProjectResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} util.Response
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 500 {object} util.Response
 // @Security BearerAuth
 // @Router /projects/{id} [get]
 func (h *ProjectHandler) FindByID(
@@ -165,17 +148,13 @@ func (h *ProjectHandler) FindByID(
 		32,
 	)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid project id",
-		})
+		util.Error(c, http.StatusBadRequest, "invalid project id")
 		return
 	}
 
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -187,20 +166,16 @@ func (h *ProjectHandler) FindByID(
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return
 	}
 
-	c.JSON(http.StatusOK, res)
+	util.Success(c, http.StatusOK, res)
 }
 
 // Update godoc
@@ -211,12 +186,12 @@ func (h *ProjectHandler) FindByID(
 // @Produce json
 // @Param id path int true "Project ID"
 // @Param request body project.UpdateProjectRequest true "Update project request"
-// @Success 200 {object} project.ProjectResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} util.Response
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 409 {object} util.Response
+// @Failure 500 {object} util.Response
 // @Security BearerAuth
 // @Router /projects/{id} [patch]
 func (h *ProjectHandler) Update(
@@ -230,26 +205,20 @@ func (h *ProjectHandler) Update(
 		32,
 	)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid project id",
-		})
+		util.Error(c, http.StatusBadRequest, "invalid project id")
 		return
 	}
 
 	var req projectdto.UpdateProjectRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		util.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -262,30 +231,22 @@ func (h *ProjectHandler) Update(
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		case errors.Is(err, apperrors.ErrConflict):
-			c.JSON(http.StatusConflict, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusConflict, err.Error())
 
 		case errors.Is(err, apperrors.ErrBadRequest):
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusBadRequest, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return
 	}
 
-	c.JSON(http.StatusOK, res)
+	util.Success(c, http.StatusOK, res)
 }
 
 // Delete godoc
@@ -294,10 +255,10 @@ func (h *ProjectHandler) Update(
 // @Tags Projects
 // @Param id path int true "Project ID"
 // @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 500 {object} util.Response
 // @Security BearerAuth
 // @Router /projects/{id} [delete]
 func (h *ProjectHandler) Delete(
@@ -311,17 +272,13 @@ func (h *ProjectHandler) Delete(
 		32,
 	)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid project id",
-		})
+		util.Error(c, http.StatusBadRequest, "invalid project id")
 		return
 	}
 
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -333,14 +290,10 @@ func (h *ProjectHandler) Delete(
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return
@@ -348,3 +301,4 @@ func (h *ProjectHandler) Delete(
 
 	c.Status(http.StatusNoContent)
 }
+

@@ -7,6 +7,7 @@ import (
 	"task-management-api/internal/apperrors"
 	authdto "task-management-api/internal/dto/auth"
 	"task-management-api/internal/services"
+	"task-management-api/internal/util"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,17 +31,15 @@ func NewAuthHandler(
 // @Accept json
 // @Produce json
 // @Param request body auth.RegisterRequest true "Register request"
-// @Success 201 {object} auth.RegisterResponse
-// @Failure 400 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 201 {object} util.Response
+// @Failure 400 {object} util.Response
+// @Failure 409 {object} util.Response
+// @Failure 500 {object} util.Response
 // @Router /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req authdto.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		util.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -48,23 +47,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrConflict):
-			c.JSON(http.StatusConflict, gin.H{
-				"error": "email already registered",
-			})
+			util.Error(c, http.StatusConflict, "email already registered")
 		case errors.Is(err, apperrors.ErrBadRequest):
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusBadRequest, err.Error())
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 		
 		return
 	}
 
-	c.JSON(http.StatusCreated, res)
+	util.Success(c, http.StatusCreated, res)
 }
 
 // Login godoc
@@ -74,17 +67,15 @@ func (h *AuthHandler) Register(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body auth.LoginRequest true "Login request"
-// @Success 200 {object} auth.LoginResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} util.Response
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 500 {object} util.Response
 // @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req authdto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		util.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -92,23 +83,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidCredentials):
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": apperrors.ErrInvalidCredentials.Error(),
-			})
+			util.Error(c, http.StatusUnauthorized, apperrors.ErrInvalidCredentials.Error())
 
 		case errors.Is(err, apperrors.ErrBadRequest):
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusBadRequest, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return
 	}
 
-	c.JSON(http.StatusOK, res)
-}
+	util.Success(c, http.StatusOK, res)
+}
