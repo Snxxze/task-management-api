@@ -182,10 +182,10 @@ PATCH  /users/:id
 DELETE /users/:id
 ```
 
-## Roadmap ถัดไป
+## Testing
 
-- Response wrapper
-- Validation error response
-- Pagination และ sorting
-- Logging และ request ID middleware
-- Unit test และ Integration test
+ดูรายละเอียดโครงสร้างสถาปัตยกรรมและวิธีการรันชุดทดสอบทั้งหมดที่ [TESTING.md]
+
+```powershell
+go test -v ./...
+```
