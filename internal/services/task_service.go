@@ -15,15 +15,16 @@ import (
 
 type TaskService interface {
 	Create(ctx context.Context, userID uint, req taskdto.CreateTaskRequest) (*taskdto.TaskResponse, error)
-	Find(ctx context.Context, filter filters.TaskFilter) ([]taskdto.TaskResponse, error)
-	FindByID(ctx context.Context, id uint) (*taskdto.TaskResponse, error)
-	Update(ctx context.Context, id uint, req taskdto.UpdateTaskRequest) (*taskdto.TaskResponse, error)
-	Delete(ctx context.Context, id uint) error
+	Find(ctx context.Context, userID uint, filter filters.TaskFilter) ([]taskdto.TaskResponse, error)
+	FindByID(ctx context.Context, id uint, userID uint) (*taskdto.TaskResponse, error)
+	Update(ctx context.Context, id uint, userID uint, req taskdto.UpdateTaskRequest) (*taskdto.TaskResponse, error)
+	Delete(ctx context.Context, id uint, userID uint) error
 }
 
 type taskService struct {
 	taskRepo    repositories.TaskRepository
 	projectRepo repositories.ProjectRepository
+	now         func() time.Time
 }
 
 func NewTaskService(
@@ -33,6 +34,7 @@ func NewTaskService(
 	return &taskService{
 		taskRepo:    taskRepo,
 		projectRepo: projectRepo,
+		now:         time.Now,
 	}
 }
 
@@ -52,7 +54,11 @@ func (s *taskService) Create(
 
 	priority := models.Medium
 	if req.Priority != "" {
-		priority = models.TaskPriority(strings.ToLower(req.Priority))
+		p := models.TaskPriority(strings.ToLower(req.Priority))
+		if !p.IsValid() {
+			return nil, apperrors.ErrBadRequest
+		}
+		priority = p
 	}
 
 	task := models.Task{
@@ -75,9 +81,10 @@ func (s *taskService) Create(
 
 func (s *taskService) Find(
 	ctx context.Context,
+	userID uint,
 	filter filters.TaskFilter,
 ) ([]taskdto.TaskResponse, error) {
-	tasks, err := s.taskRepo.Find(ctx, filter)
+	tasks, err := s.taskRepo.Find(ctx, userID, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +100,9 @@ func (s *taskService) Find(
 func (s *taskService) FindByID(
 	ctx context.Context,
 	id uint,
+	userID uint,
 ) (*taskdto.TaskResponse, error) {
-	task, err := s.taskRepo.FindByID(ctx, id)
+	task, err := s.taskRepo.FindByID(ctx, id, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -107,9 +115,10 @@ func (s *taskService) FindByID(
 func (s *taskService) Update(
 	ctx context.Context,
 	id uint,
+	userID uint,
 	req taskdto.UpdateTaskRequest,
 ) (*taskdto.TaskResponse, error) {
-	task, err := s.taskRepo.FindByID(ctx, id)
+	task, err := s.taskRepo.FindByID(ctx, id, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -129,9 +138,12 @@ func (s *taskService) Update(
 
 	if req.Status != nil {
 		statusVal := models.TaskStatus(strings.ToLower(*req.Status))
+		if !statusVal.IsValid() {
+			return nil, apperrors.ErrBadRequest
+		}
 		task.Status = statusVal
 		if statusVal == models.Done && task.CompletedAt == nil {
-			now := time.Now()
+			now := s.now()
 			task.CompletedAt = &now
 
 		} else if statusVal != models.Done {
@@ -141,7 +153,11 @@ func (s *taskService) Update(
 	}
 
 	if req.Priority != nil {
-		task.Priority = models.TaskPriority(strings.ToLower(*req.Priority))
+		priorityVal := models.TaskPriority(strings.ToLower(*req.Priority))
+		if !priorityVal.IsValid() {
+			return nil, apperrors.ErrBadRequest
+		}
+		task.Priority = priorityVal
 	}
 
 	if req.DueDate != nil {
@@ -160,7 +176,7 @@ func (s *taskService) Update(
 func (s *taskService) Delete(
 	ctx context.Context,
 	id uint,
+	userID uint,
 ) error {
-	
-	return s.taskRepo.Delete(ctx, id)
-}
+	return s.taskRepo.Delete(ctx, id, userID)
+}

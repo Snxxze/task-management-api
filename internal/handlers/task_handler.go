@@ -11,6 +11,7 @@ import (
 	"task-management-api/internal/models"
 	"task-management-api/internal/repositories/filters"
 	"task-management-api/internal/services"
+	"task-management-api/internal/util"
 
 	"github.com/gin-gonic/gin"
 )
@@ -34,25 +35,23 @@ func NewTaskHandler(
 // @Accept json
 // @Produce json
 // @Param request body task.CreateTaskRequest true "Create task request"
-// @Success 201 {object} task.TaskResponse
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 201 {object} util.Response
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 500 {object} util.Response
+// @Security BearerAuth
 // @Router /tasks [post]
 func (h *TaskHandler) Create(c *gin.Context) {
 	var req taskdto.CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		util.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -60,25 +59,19 @@ func (h *TaskHandler) Create(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		case errors.Is(err, apperrors.ErrBadRequest):
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusBadRequest, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return
 	}
 
-	c.JSON(http.StatusCreated, res)
+	util.Success(c, http.StatusCreated, res)
 }
 
 // Find godoc
@@ -89,10 +82,18 @@ func (h *TaskHandler) Create(c *gin.Context) {
 // @Param project_id query int false "Project ID"
 // @Param status query string false "Status (todo, doing, done)"
 // @Param priority query string false "Priority (low, medium, high)"
-// @Success 200 {array} task.TaskResponse
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 500 {object} util.Response
+// @Security BearerAuth
 // @Router /tasks [get]
 func (h *TaskHandler) Find(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	var filter filters.TaskFilter
 
 	if projectIDStr := c.Query("project_id"); projectIDStr != "" {
@@ -112,15 +113,13 @@ func (h *TaskHandler) Find(c *gin.Context) {
 		filter.Priority = &pr
 	}
 
-	tasks, err := h.taskService.Find(c.Request.Context(), filter)
+	tasks, err := h.taskService.Find(c.Request.Context(), userID, filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "internal server error",
-		})
+		util.Error(c, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
-	c.JSON(http.StatusOK, tasks)
+	util.Success(c, http.StatusOK, tasks)
 }
 
 // FindByID godoc
@@ -129,39 +128,41 @@ func (h *TaskHandler) Find(c *gin.Context) {
 // @Tags Tasks
 // @Produce json
 // @Param id path int true "Task ID"
-// @Success 200 {object} task.TaskResponse
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} util.Response
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 500 {object} util.Response
+// @Security BearerAuth
 // @Router /tasks/{id} [get]
 func (h *TaskHandler) FindByID(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid task id",
-		})
+		util.Error(c, http.StatusBadRequest, "invalid task id")
 		return
 	}
 
-	res, err := h.taskService.FindByID(c.Request.Context(), uint(id))
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	res, err := h.taskService.FindByID(c.Request.Context(), uint(id), userID)
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return
 	}
 
-	c.JSON(http.StatusOK, res)
+	util.Success(c, http.StatusOK, res)
 }
 
 // Update godoc
@@ -172,52 +173,50 @@ func (h *TaskHandler) FindByID(c *gin.Context) {
 // @Produce json
 // @Param id path int true "Task ID"
 // @Param request body task.UpdateTaskRequest true "Update task request"
-// @Success 200 {object} task.TaskResponse
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Success 200 {object} util.Response
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 500 {object} util.Response
+// @Security BearerAuth
 // @Router /tasks/{id} [patch]
 func (h *TaskHandler) Update(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid task id",
-		})
+		util.Error(c, http.StatusBadRequest, "invalid task id")
+		return
+	}
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	var req taskdto.UpdateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		util.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	res, err := h.taskService.Update(c.Request.Context(), uint(id), req)
+	res, err := h.taskService.Update(c.Request.Context(), uint(id), userID, req)
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		case errors.Is(err, apperrors.ErrBadRequest):
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusBadRequest, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return
 	}
 
-	c.JSON(http.StatusOK, res)
+	util.Success(c, http.StatusOK, res)
 }
 
 // Delete godoc
@@ -226,36 +225,38 @@ func (h *TaskHandler) Update(c *gin.Context) {
 // @Tags Tasks
 // @Param id path int true "Task ID"
 // @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Failure 400 {object} util.Response
+// @Failure 401 {object} util.Response
+// @Failure 404 {object} util.Response
+// @Failure 500 {object} util.Response
+// @Security BearerAuth
 // @Router /tasks/{id} [delete]
 func (h *TaskHandler) Delete(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid task id",
-		})
+		util.Error(c, http.StatusBadRequest, "invalid task id")
 		return
 	}
 
-	err = h.taskService.Delete(c.Request.Context(), uint(id))
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		util.Error(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	err = h.taskService.Delete(c.Request.Context(), uint(id), userID)
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
+			util.Error(c, http.StatusNotFound, err.Error())
 
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "internal server error",
-			})
+			util.Error(c, http.StatusInternalServerError, "internal server error")
 		}
 
 		return
 	}
 
 	c.Status(http.StatusNoContent)
-}
+}
