@@ -6,6 +6,7 @@ import (
 	"task-management-api/internal/config"
 	"task-management-api/internal/database"
 	_ "task-management-api/internal/docs"
+	"task-management-api/internal/middleware"
 	"task-management-api/internal/routes"
 
 	"github.com/gin-gonic/gin"
@@ -36,7 +37,10 @@ func main() {
 
 	app := bootstrap.New(db, cfg.JWTSecret)
 
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(middleware.RequestIDMiddleware())
+	router.Use(middleware.LoggerMiddleware())
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
